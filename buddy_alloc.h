@@ -80,13 +80,4 @@ uint64_t get_buddy_alloc_total_size(pbuddy_alloc_t *alloc);
 uint64_t get_buddy_alloc_size(uint64_t size);
 uint64_t get_buddy_alloc_size_rounddown(uint64_t size);
 
-typedef struct region_s region_t;
-struct region_s
-{
-    region_t *prev;
-    region_t *next;
-    int alloc_idx; /* allocator index: only for shared pool allocator */
-    uint64_t size; /* size of this region, including region_t header */
-};
-
 #endif /* not _BUDDY_ALLOC_H */
