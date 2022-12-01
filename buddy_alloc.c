@@ -68,8 +68,7 @@ buddy_allocator_new(void *page_start, uint64_t max_size, uint64_t size, char *fi
     }
 
     uint64_t reserved = sizeof(pbuddy_alloc_t) + byte_sum * sizeof(char);
-    alloc = (pbuddy_alloc_t *)mmap(NULL, reserved, PROT_READ | PROT_WRITE,
-                                   MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+    alloc = (pbuddy_alloc_t *)malloc(reserved);
 
     pthread_mutexattr_t attr;
     pthread_mutexattr_init(&attr);
@@ -162,7 +161,6 @@ void *
 buddy_malloc(pbuddy_alloc_t *alloc, uint64_t size)
 {
     buddy_chunk_t *chunk, *buddy;
-    region_t *region;
     uint64_t tmp_size;
     int i;
     int bin_idx;             /* bitmap 몇 번째 레벨 (ex. 8192 -> 0) */
@@ -234,12 +232,7 @@ buddy_malloc(pbuddy_alloc_t *alloc, uint64_t size)
 
     pthread_mutex_unlock(&alloc->mutex);
 
-    /* buddy chunk에서 region으로 변환 */
-    region = (region_t *)chunk;
-    region->prev = region->next = NULL;
-    region->size = size;
-
-    return region;
+    return chunk;
 } /* buddy_malloc */
 
 /**
