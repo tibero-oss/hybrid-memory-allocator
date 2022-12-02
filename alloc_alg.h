@@ -369,9 +369,6 @@ malloc_internal(
 
             break;
 
-        case REGION_ALLOC_FIXED:
-            return NULL;
-
         default:
             assert(0);
         }

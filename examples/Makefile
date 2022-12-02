@@ -1,10 +1,9 @@
 CC = gcc
-#CFLAGS = -Wall -g -I..
-CFLAGS = -Wall -g -DTB_DEBUG=1 -D_ALLOC_USE_GDBINFO=1 -I..
-PROGS = example
-PROGS2 = test1
+CFLAGS = -Wall -g -D TB_DEBUG -D _ALLOC_USE_DBGINFO -D PMEM_TEST -I..
+PROGS = example test1
+#PROGS2 = test1
 
-all: $(PROGS2)
+all: $(PROGS)
 
 example: example.c ../pmem_buddy.o ../buddy_alloc.o
 	$(CC) $(CFLAGS) -lpthread -o $@ $^

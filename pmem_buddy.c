@@ -10,7 +10,6 @@
 #include <errno.h>
 
 #include "pmem_buddy.h"
-#include "buddy_alloc.h"
 
 pbuddy_alloc_t *PBUDDY_ALLOC = NULL;
 /**
@@ -65,8 +64,11 @@ pbuddy_alloc_t *pbuddy_alloc_init(const char *dir, void *base_ptr, size_t max_si
     }
 
     // 파일을 메모리에 매핑한다.
-    //addr = mmap(base_ptr, max_size, PROT_READ | PROT_WRITE, MAP_SHARED_VALIDATE | MAP_SYNC, fd, 0);
+#if defined(PMEM_TEST)
     addr = mmap(base_ptr, max_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+#else
+    addr = mmap(base_ptr, max_size, PROT_READ | PROT_WRITE, MAP_SHARED_VALIDATE | MAP_SYNC, fd, 0);
+#endif
     if (addr == MAP_FAILED)
     {
         printf("mmap failed(errno:%d, %s)\n", errno, strerror(errno));
@@ -86,7 +88,7 @@ exit:
     if (fd != -1)
         (void)close(fd);
     if (file_fullpath != NULL)
-        (void)munmap(file_fullpath, dir_len + sizeof(template));
+        free(file_fullpath);
     return NULL;
 }
 
@@ -113,19 +115,4 @@ int pbuddy_alloc_destroy()
     free(alloc_ptr);
 
     return 0;
-}
-
-void *pbuddy_malloc(size_t size)
-{
-    return buddy_malloc(PBUDDY_ALLOC, (uint64_t)size);
-}
-
-void pbuddy_free(void *ptr, size_t size)
-{
-    buddy_free(PBUDDY_ALLOC, ptr, size);
-}
-
-size_t get_pbuddy_alloc_size(size_t size)
-{
-    return (size_t)get_buddy_alloc_size((uint64_t)size);
 }
