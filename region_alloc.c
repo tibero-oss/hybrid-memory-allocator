@@ -136,65 +136,6 @@ allocator_setname(allocator_t *allocator, const char *fmt, ...)
     va_end(args);
 } /* allocator_setname */
 
-/**
- * @brief   SYSTEM_ALLOC 을 생성한다. (tbsvr_main에서 한번만 불린다!)
- *
- * system malloc을 사용하는 region allocator를 생성하는 부분
- * 즉 PGA을 위한 allocator를 생성하는 부분이다.
- * 생성을 제외한 나머지 인터페이스는 PGA용이건, SGA용이건 동일하다.
- */
-static allocator_t *
-system_allocator_new_internal(void)
-{
-    alloc_t *alloc;
-
-    region_t *region;
-    chunk_t *bin;
-    int idx;
-
-    /* Allocator 초기화. */
-    alloc = malloc(sizeof(alloc_t));
-
-    alloc->super.alloc_owner_id = (int)tb_get_thrid();
-
-    alloc->super.alloc_type = ALLOC_TYPE_REGION_SYS;
-    alloc->super.desc = &region_allocator_desc;
-    strcpy(alloc->super.name, "(SYSTEM ALLOC)");
-    alloc->super.file = __FILE__;
-    alloc->super.line = (uint32_t)__LINE__;
-    alloc->super.vcode = ALLOCATOR_VCODE;
-
-    /* Initialize the allocator. */
-    alloc->super.use_mutex = true;
-    MUTEX_INIT(&(alloc->super.mutex));
-
-    alloc->super.parent = NULL;
-    INIT_LIST_HEAD(&(alloc->super.child));
-
-    alloc->alloctype = REGION_ALLOC_SYS;
-    alloc->alloc_idx = 0;
-    alloc->total_size = 0;
-    alloc->total_used = 0;
-
-    region = &(alloc->regions);
-    region->prev = region->next = region;
-
-    alloc->smallmap = 0;
-    alloc->treemap = 0;
-    alloc->dvsize = 0;
-    alloc->dv = NULL;
-
-    for (idx = 0; idx < 32; idx++) {
-        bin = SMALLBIN_AT(alloc, idx);
-        bin->fd = bin->bk = bin;
-
-        alloc->treebins[idx] = NULL;
-    }
-
-    return &alloc->super;
-} /* system_allocator_new_internal */
-
-
 void static
 root_allocator_new(void)
 {
@@ -295,13 +236,13 @@ root_allocator_new(void)
 } /* root_allocator_new */
 
 /**
- * @brief   PMEM_SYSTEM_ALLOC 을 생성한다.
+ * @brief   SYSTEM_ALLOC, PMEM_SYSTEM_ALLOC 을 생성한다. (한번만 불린다!)
  *
  * system malloc을 사용하는 region allocator를 생성하는 부분
  * 생성을 제외한 나머지 인터페이스는 PGA용이건, SGA용이건 동일하다.
  */
 static allocator_t *
-pmem_system_allocator_new_internal(void)
+system_allocator_new_internal(tb_bool_t pmem)
 {
     alloc_t *alloc;
 
@@ -314,9 +255,15 @@ pmem_system_allocator_new_internal(void)
 
     alloc->super.alloc_owner_id = (int)tb_get_thrid();
 
-    alloc->super.alloc_type = ALLOC_TYPE_REGION_PMEM;
+    if (pmem)
+        alloc->super.alloc_type = ALLOC_TYPE_REGION_PMEM;
+    else
+        alloc->super.alloc_type = ALLOC_TYPE_REGION_SYS;
     alloc->super.desc = &region_allocator_desc;
-    strcpy(alloc->super.name, "(PMEM SYSTEM ALLOC)");
+    if (pmem)
+        strcpy(alloc->super.name, "(PMEM SYSTEM ALLOC)");
+    else
+        strcpy(alloc->super.name, "(SYSTEM ALLOC)");
     alloc->super.file = __FILE__;
     alloc->super.line = (uint32_t)__LINE__;
     alloc->super.vcode = ALLOCATOR_VCODE;
@@ -328,7 +275,11 @@ pmem_system_allocator_new_internal(void)
     alloc->super.parent = NULL;
     INIT_LIST_HEAD(&(alloc->super.child));
 
-    alloc->alloctype = REGION_ALLOC_PMEM;
+    if (pmem)
+        alloc->alloctype = REGION_ALLOC_PMEM;
+    else
+        alloc->alloctype = REGION_ALLOC_SYS;
+
     alloc->alloc_idx = 0;
     alloc->total_size = 0;
     alloc->total_used = 0;
@@ -349,13 +300,14 @@ pmem_system_allocator_new_internal(void)
     }
 
     return &alloc->super;
-} /* pmem_system_allocator_new_internal */
+} /* system_allocator_new_internal */
+
 allocator_t *
 system_allocator_new(void)
 {
     root_allocator_new();
 
-    return system_allocator_new_internal();
+    return system_allocator_new_internal(false);
 } /* system_allocator_new */
 
 allocator_t *
@@ -364,20 +316,23 @@ pmem_system_allocator_new(void)
     if (pbuddy_alloc_init(PMEM_DIR, NULL, pmem_max_size, pmem_alloc_size) == NULL)
         return NULL;
 
-    return pmem_system_allocator_new_internal();
+    return system_allocator_new_internal(true);
 } /* pmem_system_allocator_new */
 
-void init_tballoc(void)
+void tballoc_init(void)
 {
     SYSTEM_ALLOC = system_allocator_new();
-
     PMEM_SYSTEM_ALLOC = pmem_system_allocator_new();
 }
 
-void destroy_tballoc(void)
+void tballoc_clear(void)
 {
     allocator_delete(SYSTEM_ALLOC);
+    SYSTEM_ALLOC = NULL;
+    /* TODO: delete root allocator */
+
     allocator_delete(PMEM_SYSTEM_ALLOC);
+    PMEM_SYSTEM_ALLOC = NULL;
     pbuddy_alloc_destroy();
 }
 
@@ -596,9 +551,6 @@ region_delete(allocator_t *allocator, const char *file_delete, int line_delete)
     case REGION_ALLOC_ROOT:
         TB_THR_ASSERT(!"Cannot delete ROOT region allocator!");
 
-    case REGION_ALLOC_FIXED:
-        TB_THR_ASSERT(!"Cannot delete FIXED region allocator!");
-
     default:
         TB_THR_ASSERT(!"Unknown allocator!");
     }
@@ -717,9 +669,6 @@ allocator_cleanup(allocator_t *allocator)
 
     case REGION_ALLOC_ROOT:
         TB_THR_ASSERT(!"Cannot cleanup ROOT region allocator!");
-
-    case REGION_ALLOC_FIXED:
-        TB_THR_ASSERT(!"Cannot cleanup FIXED region allocator!");
 
     default:
         TB_THR_ASSERT(!"Unknown allocator!");
@@ -1085,6 +1034,7 @@ region_free(allocator_t *allocator, void *ptr, const char *file, int line)
     csize_t chunksize;
     alloc_t *alloc = (alloc_t *) allocator;
     dstream_t *ds = &debug_dstream;
+    tb_bool_t reuse;
 
     if (allocator->vcode != ALLOCATOR_VCODE) {
         TB_LOG("try to free a chunk at invalid allocator. "
@@ -1145,11 +1095,10 @@ region_free(allocator_t *allocator, void *ptr, const char *file, int line)
     alloc->total_used -= chunksize;
 
     /* 재사용을 위해서 실제로 해제하지 않는 경우. */
-    if (alloc->alloctype == REGION_ALLOC_ROOT &&
-        alloc->total_size <= IPARAM(_SYSTEM_MEMORY_REUSE_SIZE))
-        free_internal(alloc, MEM2CHUNK(base), true);
-    else
-        free_internal(alloc, MEM2CHUNK(base), false);
+    reuse = (alloc->alloctype == REGION_ALLOC_ROOT &&
+             alloc->total_size <= IPARAM(_SYSTEM_MEMORY_REUSE_SIZE));
+
+    free_internal(alloc, MEM2CHUNK(base), reuse);
 
     if (alloc->super.use_mutex)
         MUTEX_UNLOCK(&alloc->super.mutex);

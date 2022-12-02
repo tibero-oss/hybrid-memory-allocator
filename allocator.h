@@ -53,7 +53,6 @@ enum allocator_type_e {
     ALLOC_TYPE_REGION_ROOT,
     ALLOC_TYPE_REGION_SYS,
     ALLOC_TYPE_REGION_PMEM,
-    ALLOC_TYPE_DUMMY,
     ALLOC_TYPE_MAX
 };
 typedef enum allocator_type_e allocator_type_t;
@@ -61,8 +60,7 @@ typedef enum allocator_type_e allocator_type_t;
 enum region_alloctype_e {
     REGION_ALLOC_ROOT,
     REGION_ALLOC_SYS,
-    REGION_ALLOC_PMEM,
-    REGION_ALLOC_FIXED
+    REGION_ALLOC_PMEM
 };
 typedef enum region_alloctype_e region_alloctype_t;
 
@@ -129,8 +127,8 @@ struct allocator_desc_s {
 extern allocator_t *SYSTEM_ALLOC;
 extern allocator_t *PMEM_SYSTEM_ALLOC;
 
-void init_tballoc(void);
-void destroy_tballoc(void);
+void tballoc_init(void);
+void tballoc_clear(void);
 
 #define region_allocator_new(parent, use_mutex)                  \
     region_allocator_new_internal(parent, use_mutex, false, __FILE__, __LINE__)
@@ -278,6 +276,7 @@ _tb_strndup(allocator_t *allocator, const char *src, int n, const char *file,
  * Debugging/tracedump functions
  *************************************************/
 
+/* dump 로직은 포팅 대상에서 제외 */
 #if 0
 /**
  * @brief   Allocator dump.
