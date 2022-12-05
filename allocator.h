@@ -12,6 +12,7 @@
 #include "tb_common.h"
 #include "list.h"
 #include "thr_assert.h"
+#include "iparam.h"
 
 #ifndef _TB_THREAD_MUTEX_T
 #define _TB_THREAD_MUTEX_T

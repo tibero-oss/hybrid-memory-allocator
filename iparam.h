@@ -22,4 +22,6 @@ extern tb_bool_t IPARAM(_FORCE_NATIVE_ALLOC_USE);
 
 extern tb_bool_t IPARAM(_SLEEP_ON_ASSERT);
 
+extern char *IPARAM(PMEM_DIR);
+
 #endif /* _IPARAM_H */

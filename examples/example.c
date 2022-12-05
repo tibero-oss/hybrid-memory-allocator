@@ -1,4 +1,4 @@
-#define PMEM_DIR "/workspace/develop/code_test/pmem_tmp"
+#define PMEM_DIR "/pmem/tmp"
 
 #include <stdio.h>
 #include <string.h>

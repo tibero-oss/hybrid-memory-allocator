@@ -88,8 +88,6 @@ allocator_t        *SYSTEM_ALLOC = NULL;
 
 allocator_t        *PMEM_SYSTEM_ALLOC = NULL;
 
-#define PMEM_DIR "/workspace/develop/code_test/pmem_tmp"
-
 size_t pmem_max_size = 1024 * 1024 * 1024;
 size_t pmem_alloc_size = 512 * 1024 * 1024;
 
@@ -313,7 +311,7 @@ system_allocator_new(void)
 allocator_t *
 pmem_system_allocator_new(void)
 {
-    if (pbuddy_alloc_init(PMEM_DIR, NULL, pmem_max_size, pmem_alloc_size) == NULL)
+    if (pbuddy_alloc_init(IPARAM(PMEM_DIR), NULL, pmem_max_size, pmem_alloc_size) == NULL)
         return NULL;
 
     return system_allocator_new_internal(true);
