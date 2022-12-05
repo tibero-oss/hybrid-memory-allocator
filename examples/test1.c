@@ -76,6 +76,7 @@ void test4()
 
 int main()
 {
+    IPARAM(PMEM_DIR) = "/workspace/develop/code_test/pmem_tmp";
     tballoc_init();
 
     test1();

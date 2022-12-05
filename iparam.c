@@ -18,3 +18,5 @@ int IPARAM(_SYSTEM_MEMORY_REUSE_SIZE) = 4 * 1024 * 1024;
 tb_bool_t IPARAM(_FORCE_NATIVE_ALLOC_USE) = false;
 
 tb_bool_t IPARAM(_SLEEP_ON_ASSERT) = true;
+
+char *IPARAM(PMEM_DIR) = "/pmem/tmp";
