@@ -37,26 +37,6 @@
 #include "alloc_types.h"
 #include "alloc_alg.h"
 
-
-#if 0 /* SEWOONG */
-#include "spinlock.h"
-#include "spinlock_array.h"
-#include "tbsvr_alloc.h"
-#include "tbsvr_iparam.h"
-
-#define _ALLOC_TYPE_SVR
-#include "alloc_dbginfo.h"
-#include "alloc_dbginfo_dump.h"
-
-//#include "alloc_efence.h"
-
-#include "alloc_alg.h"
-#include "alloc_valloc.h"
-
-#include "region_alloc_check.h"
-
-#endif
-
 /*************************************************************************
  * The allocator interface
  *************************************************************************/
@@ -82,34 +62,14 @@ static const allocator_desc_t region_allocator_desc = {
     region_throw
 };
 
-alloc_t     *ROOT_ALLOC = NULL;
-alloc_parent_t     *ROOT_ALLOC_PARENT = NULL;
-allocator_t        *SYSTEM_ALLOC = NULL;
+alloc_parent_t *ROOT_ALLOC_PARENT = NULL;
+alloc_t *ROOT_ALLOC = NULL;
 
-allocator_t        *PMEM_SYSTEM_ALLOC = NULL;
-
-size_t pmem_max_size = 1024 * 1024 * 1024;
-size_t pmem_alloc_size = 512 * 1024 * 1024;
+allocator_t *SYSTEM_ALLOC = NULL;
+allocator_t *PMEM_SYSTEM_ALLOC = NULL;
 
 tb_bool_t           use_root_allocator = true;
 tb_bool_t           force_malloc_use = false;
-
-/* root allocator */
-int root_allocator_cnt = 4;
-uint64_t root_reserved_region_size = 0;
-uint64_t root_reuse_regions_size = 4 * 1024 * 1024;
-uint64_t root_min_init_region_size = 1 * 1024 * 1024;
-uint64_t root_min_region_size = 4 * 1024 * 1024;
-
-/* region allocator */
-uint64_t min_region_size_upper_bound = 4 * 1024;
-uint64_t min_region_size_lower_bound = 4 * 1024 * 1024;
-
-/* limit */
-uint64_t max_region_size = 1 * 1024 * 1024 * 1024;
-
-/* common */
-tb_bool_t force_native_alloc_use = false;
 
 /*************************************************************************
  * Static function declarations
@@ -144,12 +104,12 @@ root_allocator_new(void)
     region_t *region;
     chunk_t *bin;
 
-    if (root_allocator_cnt == 0) {
+    if (IPARAM(_ROOT_ALLOCATOR_CNT) == 0) {
         use_root_allocator = false;
         return;
     }
 
-    child_cnt  = root_allocator_cnt;
+    child_cnt  = IPARAM(_ROOT_ALLOCATOR_CNT);
 
     /* root allocator 가 mmap 대신 malloc을 쓸 것인지 결정 */
     force_malloc_use = IPARAM(_FORCE_NATIVE_ALLOC_USE);
@@ -226,8 +186,8 @@ root_allocator_new(void)
             child->treebins[idx] = NULL;
         }
 
-        if (root_reserved_region_size > 0) {
-            ptr = tb_malloc(&(child->super), root_reserved_region_size);
+        if (IPARAM(_ROOT_ALLOCATOR_RESERVED_SIZE) > 0) {
+            ptr = tb_malloc(&(child->super), IPARAM(_ROOT_ALLOCATOR_RESERVED_SIZE));
             ptr = tb_realloc(&(child->super), ptr, 1);
         }
     }
@@ -311,7 +271,7 @@ system_allocator_new(void)
 allocator_t *
 pmem_system_allocator_new(void)
 {
-    if (pbuddy_alloc_init(IPARAM(PMEM_DIR), NULL, pmem_max_size, pmem_alloc_size) == NULL)
+    if (pbuddy_alloc_init(IPARAM(PMEM_DIR), NULL, IPARAM(PMEM_MAX_SIZE), IPARAM(PMEM_ALLOC_SIZE)) == NULL)
         return NULL;
 
     return system_allocator_new_internal(true);
@@ -696,7 +656,7 @@ tb_root_malloc(int64_t bytes)
     int idx, cnt;
     char *ptr;
 
-    TB_THR_ASSERT1(ROOT_ALLOC_PARENT, root_allocator_cnt);
+    TB_THR_ASSERT1(ROOT_ALLOC_PARENT, IPARAM(_ROOT_ALLOCATOR_CNT));
 
     cnt = ROOT_ALLOC_PARENT->child_cnt;
     idx = (int)tb_get_thrid() % ROOT_ALLOC_PARENT->child_cnt;
@@ -733,7 +693,7 @@ tb_root_free(void *in_ptr)
     ptr -= 16;
     idx = *(int *) ptr;
 
-    TB_THR_ASSERT1(ROOT_ALLOC_PARENT, root_allocator_cnt);
+    TB_THR_ASSERT1(ROOT_ALLOC_PARENT, IPARAM(_ROOT_ALLOCATOR_CNT));
     TB_THR_ASSERT1((idx >= 0) && (idx < ROOT_ALLOC_PARENT->child_cnt), idx);
 
     MUTEX_LOCK(&ROOT_ALLOC_PARENT->child_mutexs[idx]);
@@ -1094,7 +1054,7 @@ region_free(allocator_t *allocator, void *ptr, const char *file, int line)
 
     /* 재사용을 위해서 실제로 해제하지 않는 경우. */
     reuse = (alloc->alloctype == REGION_ALLOC_ROOT &&
-             alloc->total_size <= IPARAM(_SYSTEM_MEMORY_REUSE_SIZE));
+             alloc->total_size <= IPARAM(_ROOT_ALLOCATOR_RUSZE_SIZE));
 
     free_internal(alloc, MEM2CHUNK(base), reuse);
 

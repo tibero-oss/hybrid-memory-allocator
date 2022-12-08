@@ -320,20 +320,15 @@ malloc_internal(
         region_t *region_prev, *region_next;
 
         size = CHUNK2REGIONSIZE(reqsize);
-        if (size >= (csize_t) IPARAM(_TOTAL_SYS_MEM_SIZE))
+        if (IPARAM(_MAX_REQ_MEMORY_SIZE) != 0 && size >= (csize_t) IPARAM(_MAX_REQ_MEMORY_SIZE))
             return NULL;
 
         switch (alloc->alloctype) {
         case REGION_ALLOC_ROOT:
-            if (alloc->total_size == 0 &&
-                size <= IPARAM(_SYSTEM_MEMORY_INIT_SIZE))
-                pagesize = IPARAM(_SYSTEM_MEMORY_INIT_SIZE);
-            else
-                pagesize = IPARAM(_SYSTEM_MEMORY_EXPAND_SIZE);
+            pagesize = TB_MAX(pagesize, IPARAM(_SYSTEM_MEMORY_EXPAND_SIZE));
 
             /* 한번의 요청이 EXPAND_SIZE 이상일 경우엔 원하는 크기만큼 받아주자 */
-            if (pagesize < size)
-                pagesize = size;
+            pagesize = TB_MAX(pagesize, size);
 
             region = (region_t *) get_new_page(pagesize);
             break;
@@ -344,21 +339,19 @@ malloc_internal(
              * (단, 사용자의 요청이 1M보다 크면 물론 사용자가 요청한 크기만큼.)
              */
             pagesize = (size_t)(TB_ALIGN64(alloc->total_size / 2));
-            if (pagesize < 4096UL)
-                pagesize = 4096UL;
 
-            if (use_root_allocator) {
-                if (pagesize >= 1048576UL) /* 1M */
-                    pagesize = 1048576UL;
-            } else {
-                if (pagesize >= (size_t) IPARAM(_SYSTEM_MEMORY_EXPAND_SIZE))
-                    pagesize = IPARAM(_SYSTEM_MEMORY_EXPAND_SIZE);
+            if (!use_root_allocator && alloc->alloctype == REGION_ALLOC_SYS) {
+                pagesize = TB_MIN(pagesize, IPARAM(_SYSTEM_MEMORY_EXPAND_SIZE));
+            } 
+            else {
+                pagesize = TB_MAX(pagesize, IPARAM(_REGION_ALLOC_MIN_EXPAND_LOWER_BOUND));
+                pagesize = TB_MIN(pagesize, IPARAM(_REGION_ALLOC_MIN_EXPAND_UPPER_BOUND));
             }
 
-            if (pagesize < size)
-                pagesize = size;
+            pagesize = TB_MAX(pagesize, size);
 
             if (alloc->alloctype == REGION_ALLOC_PMEM) {
+                /* 2의 제곱수로 변경 */
                 pagesize = get_pbuddy_alloc_size(pagesize);
                 region = (region_t *)pbuddy_malloc(pagesize);
             }
