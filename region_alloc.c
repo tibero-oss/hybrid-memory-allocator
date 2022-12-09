@@ -200,7 +200,7 @@ root_allocator_new(void)
  * 생성을 제외한 나머지 인터페이스는 PGA용이건, SGA용이건 동일하다.
  */
 static allocator_t *
-system_allocator_new_internal(tb_bool_t pmem)
+system_allocator_new_internal(tb_bool_t use_pmem)
 {
     alloc_t *alloc;
 
@@ -213,12 +213,12 @@ system_allocator_new_internal(tb_bool_t pmem)
 
     alloc->super.alloc_owner_id = (int)tb_get_thrid();
 
-    if (pmem)
+    if (use_pmem)
         alloc->super.alloc_type = ALLOC_TYPE_REGION_PMEM;
     else
         alloc->super.alloc_type = ALLOC_TYPE_REGION_SYS;
     alloc->super.desc = &region_allocator_desc;
-    if (pmem)
+    if (use_pmem)
         strcpy(alloc->super.name, "(PMEM SYSTEM ALLOC)");
     else
         strcpy(alloc->super.name, "(SYSTEM ALLOC)");
@@ -233,7 +233,7 @@ system_allocator_new_internal(tb_bool_t pmem)
     alloc->super.parent = NULL;
     INIT_LIST_HEAD(&(alloc->super.child));
 
-    if (pmem)
+    if (use_pmem)
         alloc->alloctype = REGION_ALLOC_PMEM;
     else
         alloc->alloctype = REGION_ALLOC_SYS;
@@ -277,23 +277,6 @@ pmem_system_allocator_new(void)
     return system_allocator_new_internal(true);
 } /* pmem_system_allocator_new */
 
-void tballoc_init(void)
-{
-    SYSTEM_ALLOC = system_allocator_new();
-    PMEM_SYSTEM_ALLOC = pmem_system_allocator_new();
-}
-
-void tballoc_clear(void)
-{
-    allocator_delete(SYSTEM_ALLOC);
-    SYSTEM_ALLOC = NULL;
-    /* TODO: delete root allocator */
-
-    allocator_delete(PMEM_SYSTEM_ALLOC);
-    PMEM_SYSTEM_ALLOC = NULL;
-    pbuddy_alloc_destroy();
-}
-
 
 static allocator_t *
 sys_region_allocator_init(alloc_t *alloc, allocator_t *parent,
@@ -336,7 +319,10 @@ sys_region_allocator_init(alloc_t *alloc, allocator_t *parent,
     INIT_LIST_HEAD(&(alloc->super.child));
     list_add_tail(&alloc->super.link, &parent->child);
 
-    alloc->alloctype = REGION_ALLOC_SYS;
+    if (use_pmem)
+        alloc->alloctype = REGION_ALLOC_PMEM;
+    else
+        alloc->alloctype = REGION_ALLOC_SYS;
     alloc->alloc_idx = 0;
     alloc->total_size = 0;
     alloc->total_used = 0;
@@ -503,6 +489,9 @@ region_delete(allocator_t *allocator, const char *file_delete, int line_delete)
                 free_page(region, region->size);
         }
 
+        if (allocator->use_mutex)
+            MUTEX_DESTROY(&(allocator->mutex));
+
         free(alloc);
         break;
 
@@ -591,6 +580,7 @@ allocator_cleanup(allocator_t *allocator)
     /* Free each region. */
     switch (alloc->alloctype) {
     case REGION_ALLOC_SYS:
+    case REGION_ALLOC_PMEM:
         /* 이미 cleanup 된 allocator라면 아래 작업들도 생략해 주자. */
         if (alloc->total_size == 0)
             break;
@@ -599,7 +589,9 @@ allocator_cleanup(allocator_t *allocator)
         for (region = head->next; region != head; region = next) {
             next = region->next;
             region_redzone_check(allocator, region);
-            if (use_root_allocator)
+            if (alloc->alloctype == REGION_ALLOC_PMEM)
+                pbuddy_free(region, region->size);
+            else if (use_root_allocator)
                 tb_root_free(region);
             else
                 free_page(region, region->size);
@@ -637,6 +629,68 @@ allocator_cleanup(allocator_t *allocator)
 
 } /* allocator_cleanup */
 
+void static
+root_allocator_delete()
+{
+    region_t *head, *region, *next;
+    alloc_t *child;
+    int n;
+
+    if (!use_root_allocator || !ROOT_ALLOC_PARENT)
+        return;
+
+    if (SYSTEM_ALLOC != NULL) {
+        allocator_delete(SYSTEM_ALLOC);
+        SYSTEM_ALLOC = NULL;
+    }
+
+    TB_THR_ASSERT(ROOT_ALLOC_PARENT->super.vcode == ALLOCATOR_VCODE);
+    ROOT_ALLOC_PARENT->super.vcode = 0;
+
+    for (n = 0; n < ROOT_ALLOC_PARENT->child_cnt; n++) {
+        child = &ROOT_ALLOC[n];
+
+        TB_THR_ASSERT(child->super.vcode == ALLOCATOR_VCODE);
+        child->super.vcode = 0;
+
+        head = &(child->regions);
+        for (region = head->next; region != head; region = next)
+        {
+            next = region->next;
+#ifdef TB_DEBUG
+            region_redzone_check((allocator_t *)child, region);
+#endif
+            free_page(region, region->size);
+        }
+
+        MUTEX_DESTROY(&(child->super.mutex));
+        MUTEX_DESTROY(&(ROOT_ALLOC_PARENT->child_mutexs[n]));
+
+        list_del(&child->super.link);
+    }
+
+    MUTEX_DESTROY(&(ROOT_ALLOC_PARENT->super.mutex));
+
+    free(ROOT_ALLOC_PARENT);
+    ROOT_ALLOC_PARENT = NULL;
+} /* root_allocator_new */
+
+void tballoc_init(void)
+{
+    SYSTEM_ALLOC = system_allocator_new();
+    PMEM_SYSTEM_ALLOC = pmem_system_allocator_new();
+}
+
+void tballoc_clear(void)
+{
+    allocator_delete(SYSTEM_ALLOC);
+    SYSTEM_ALLOC = NULL;
+    root_allocator_delete();
+
+    allocator_delete(PMEM_SYSTEM_ALLOC);
+    PMEM_SYSTEM_ALLOC = NULL;
+    pbuddy_alloc_destroy();
+}
 /*************************************************************************
  * }}} Allocator constructor/destructor
  *************************************************************************/
