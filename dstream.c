@@ -1,6 +1,6 @@
 /**
  * @file    dstream.c
- * @brief   TODO brief documentation here.
+ * @brief   dummy dump stream
  *
  * @author
  * @version $Id$

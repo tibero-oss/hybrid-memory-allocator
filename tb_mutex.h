@@ -1,6 +1,6 @@
 /**
  * @file    tb_mutex.h
- * @brief   TODO brief documentation here.
+ * @brief   dummy lock
  *
  * @author
  * @version $Id$

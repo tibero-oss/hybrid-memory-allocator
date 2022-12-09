@@ -20,11 +20,11 @@
 typedef struct alloc_dbginfo_s alloc_dbginfo_t;
 #endif /* _ALLOC_DBGINFO_T */
 
-/* SEWOONG
+/* TODO: implement allocator dump
 void alloc_tracedump(dstream_t *dstream, allocator_t *allocator);
 void alloc_tracedump_internal(dstream_t *dstream, allocator_t *allocator,
                               int level, tb_bool_t summary);
-                              */
+*/
 
 /*************************************************************************
  * {{{ _ALLOC_USE_DBGINFO
@@ -201,11 +201,11 @@ alloc_check_redzone(allocator_t *allocator, void *ptr, tb_bool_t clear)
                 dbginfo->file, dbginfo->line, dbginfo->size);
 
         fprintf(stderr, "FRONT REDZONE:\n");
-        /* SEWOONG
+        /* TODO: Implement dump
          * fdump_data(stderr, front, _ALLOC_REDZONE_SIZE);
          */
         fprintf(stderr, "REAR REDZONE:\n");
-        /* SEWOONG
+        /* TODO: Implement dump
          * fdump_data(stderr, rear, _ALLOC_REDZONE_SIZE);
          */
 
@@ -262,11 +262,11 @@ redzone_is_valid(allocator_t *allocator, void *ptr, tb_bool_t clear)
                 dbginfo->file, dbginfo->line, dbginfo->size);
 
         fprintf(stderr, "FRONT REDZONE:\n");
-        /* SEWOONG
+        /* TODO: Implement dump
          * fdump_data(stderr, front, _ALLOC_REDZONE_SIZE);
          */
         fprintf(stderr, "REAR REDZONE:\n");
-        /* SEWOONG
+        /* TODO: Implement dump
          * fdump_data(stderr, rear, _ALLOC_REDZONE_SIZE);
          */
 

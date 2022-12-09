@@ -278,48 +278,5 @@ _tb_strndup(allocator_t *allocator, const char *src, int n, const char *file,
  *************************************************/
 
 /* dump 로직은 포팅 대상에서 제외 */
-#if 0
-/**
- * @brief   Allocator dump.
- *
- * "allocator"가 가리키는 allocator와 모든 descendant allocator의 정보를
- * 파일에 출력한다.
- *
- * 각각의 allocator에 대해 descriptor에 정의된 func_tracedump를 부르는
- * 방식으로 동작한다.
- */
-void alloc_tracedump(dstream_t *dstream, allocator_t *allocator);
-
-/*************************************************
- * Debugging/tracedump functions
- *************************************************/
-
-/**
- * @brief   Allocator summary dump.
- *
- * "allocator"가 가리키는 allocator와 모든 descendant allocator의 요약정보를
- * 파일에 출력한다.
- *
- * 각각의 allocator에 대해 descriptor에 정의된 func_tracedump를 부르는
- * 방식으로 동작한다.
- */
-void alloc_tracedump_summary(dstream_t *dstream, allocator_t *allocator);
-
-/**
- * @brief   Sanity check for the region allocator.
- *
- * @retval  ERROR_NONE: no error
- * @retval  -1: memory is corrupted!
- *
- * @warning 일반적으로 에러가 발생하면 리턴하지 않고 assert 발생한다.
- *          (region_alloc.c의 _USE_ASSERT macro를 참조할 것.)
- */
-#ifndef _DSTREAM_T
-#define _DSTREAM_T
-typedef struct dstream_s dstream_t;
-#endif
-int region_alloc_check(allocator_t *allocator, dstream_t *dstream);
-
-#endif
 
 #endif /* _ALLOCATOR_H */
