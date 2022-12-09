@@ -35,11 +35,9 @@ void test2()
     allocator_delete(pmem_alloc);
 }
 
-void test3() 
+void test3_sub(allocator_t *alloc) 
 {
     char *str1, *str2;
-
-    allocator_t *alloc = region_pallocator_new(SYSTEM_ALLOC, false);
 
     allocator_log_on(alloc);
 
@@ -58,6 +56,16 @@ void test3()
     printf("%s\n", str1);
 
     allocator_delete(alloc);
+}
+
+void test3()
+{
+    allocator_t *alloc;
+
+    alloc = region_pallocator_new(PMEM_SYSTEM_ALLOC, false);
+    test3_sub(alloc);
+    alloc = region_allocator_new(SYSTEM_ALLOC, false);
+    test3_sub(alloc);
 }
 
 void test4() 
