@@ -68,8 +68,8 @@ alloc_t *ROOT_ALLOC = NULL;
 allocator_t *SYSTEM_ALLOC = NULL;
 allocator_t *PMEM_SYSTEM_ALLOC = NULL;
 
-tb_bool_t           use_root_allocator = true;
-tb_bool_t           force_malloc_use = false;
+tb_bool_t use_root_allocator = true;
+tb_bool_t force_malloc_use = false;
 
 /*************************************************************************
  * Static function declarations
@@ -1157,132 +1157,8 @@ static void region_throw(allocator_t *allocator) { return ; }
  * }}} Recovery function
  *************************************************************************/
 
-/**
- * @brief   allocator의 내부 상태가 정상적인 것인지 검사해 주는 부분
- *
- * @param[in]   allocator
- * @param[in]   numptrs
- * @param[in]   ptrs
- * @param[in]   errmsg_file
- *
- * @warning test를 위해 빼 놓은 것일 뿐, 사실 직접 쓰일 일은 없다!
- */
-int
-region_alloc_internal_check(allocator_t *allocator, uint numptrs,
-                             void **ptrs, dstream_t *dstream)
-{
-#if 0
-    alloc_t *alloc = (alloc_t *) allocator;
-
-    uint i;
-
-    ptrlist_t chunks_inuse, freechunks, chunks_from_bins, chunks_from_ptrs;
-
-    _ptrlist_new(&chunks_inuse);
-    _ptrlist_new(&freechunks);
-    _ptrlist_new(&chunks_from_bins);
-
-    fprintf(stderr, "_region_allocator_internal_check called: %p\n", alloc);
-
-    /* Normal regions. */
-    if (region_check(allocator, &chunks_inuse, &freechunks, dstream) != 1)
-        return -1;
-
-    /* Smallbins */
-    if (smallbins_check(allocator, &chunks_from_bins, dstream) != 1)
-        return -1;
-
-    /* Treebins */
-    if (treebins_check(allocator, &chunks_from_bins, dstream) != 1)
-        return -1;
-
-    /* dv chunk */
-    if (alloc->dvsize != 0) {
-        _CHECK(alloc->dv != NULL);
-
-        _CHECK(IS_ALIGNED(alloc->dv));
-        _CHECK(GET_CHUNKSIZE(alloc->dv) == alloc->dvsize);
-        _CHECK(alloc->dvsize >= MIN_CHUNK_SIZE);
-
-        _ptrlist_add(&chunks_from_bins, alloc->dv);
-    }
-
-    /* error 상황일 때 확인용! */
-    if (freechunks.num != chunks_from_bins.num) {
-        uint i;
-
-        printf("***********************************************\n");
-        printf("freechunks:\n");
-        for (i = 0; i < freechunks.num; i++)
-            printf("%p\n", freechunks.ptr[i]);
-        printf("***********************************************\n");
-        printf("chunks_from_bins:\n");
-        for (i = 0; i < chunks_from_bins.num; i++)
-            printf("%p\n", chunks_from_bins.ptr[i]);
-        printf("***********************************************\n");
-        fflush(stdout);
-    }
-    /* Verify that all free chunks are accounted for. */
-    _CHECK(freechunks.num == chunks_from_bins.num);
-
-    _ptrlist_sort(&freechunks);
-    _ptrlist_sort(&chunks_from_bins);
-    for (i = 0; i < freechunks.num; i++)
-        _CHECK(freechunks.ptr[i] == chunks_from_bins.ptr[i]);
-
-    /* Verify that (chunks_inuse) = (ptrs) + (the allocator itself). */
-    if (ptrs != NULL) {
-        _ptrlist_new(&chunks_from_ptrs);
-
-        for (i = 0; i < numptrs; i++) {
-            if (ptrs[i] != NULL) {
-                _ptrlist_add(&chunks_from_ptrs,
-                             MEM2CHUNK(_ALLOC_MEM2DBGINFO(ptrs[i])));
-            }
-        }
-
-        if (alloc->alloctype == REGION_ALLOC_FIXED)
-            _CHECK(chunks_inuse.num == chunks_from_ptrs.num + 1);
-        else
-            _CHECK(chunks_inuse.num == chunks_from_ptrs.num);
-
-        _ptrlist_sort(&chunks_inuse);
-        _ptrlist_sort(&chunks_from_ptrs);
-        for (i = 0; i < chunks_from_ptrs.num; i++) {
-            if (alloc->alloctype == REGION_ALLOC_FIXED)
-                _CHECK(chunks_inuse.ptr[i + 1] == chunks_from_ptrs.ptr[i]);
-            else
-                _CHECK(chunks_inuse.ptr[i] == chunks_from_ptrs.ptr[i]);
-        }
-
-        _ptrlist_delete(&chunks_from_ptrs);
-    }
-
-    /* Sanity check complete! */
-
-    _ptrlist_delete(&chunks_inuse);
-    _ptrlist_delete(&freechunks);
-    _ptrlist_delete(&chunks_from_bins);
-
-    return ERROR_NONE;
-#endif
-    return 0;
-} /* region_alloc_internal_check */
-
-
-/**
- * @brief   allocator의 내부 상태가 정상적인 것인지 검사해 주는 부분
- *
- * @param[in]   allocator
- * @param[in]   errmsg_file
- */
-int
-region_alloc_check(allocator_t *allocator, dstream_t *dstream)
-{
-    return region_alloc_internal_check(allocator, 0, NULL, dstream);
-} /* region_alloc_check */
 /*************************************************************************
- * }}} Tracedump & allocator check functions
+ * {{{ Tracedump & allocator check functions
  *************************************************************************/
 
 static void
@@ -1306,13 +1182,13 @@ region_chunk_dump(dstream_t *ds, chunk_t *chunk) {
 		dump_size = 8192-((uint64_t)chunk % 4096);
         dprint(ds, "Chunk Mem Hex Dump  0x%X size %d\n",
                chunk, dump_size);
-        //SEWOONG dbinary_dump(ds, chunk, max_dump_size);
+        /* TODO: dbinary_dump(ds, chunk, max_dump_size); */
         dprint(ds, "----------------------------------------------------------------------\n");
     }
     else {
         dprint(ds, "Chunk Mem Hex Dump  0x%X size %d\n",
                chunk, GET_CHUNKSIZE(chunk) + CSIZE_T_SIZE);
-        //SEWOONG dbinary_dump(ds, chunk, GET_CHUNKSIZE(chunk) + CSIZE_T_SIZE);
+        /* TODO: dbinary_dump(ds, chunk, GET_CHUNKSIZE(chunk) + CSIZE_T_SIZE); */
         dprint(ds, "----------------------------------------------------------------------\n");
     }
 }
@@ -1369,6 +1245,10 @@ region_previous_chunk_dump(dstream_t *ds, allocator_t *allocator,
         if (found) break;
     }
 }
+
+/*************************************************************************
+ * }}} Tracedump & allocator check functions
+ *************************************************************************/
 
 /**
  * @brief   하위 allocator 를 포함하여 파라미터로 받은 allocator의 메모리
