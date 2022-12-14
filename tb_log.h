@@ -12,9 +12,9 @@
 #include "tb_common.h"
 #include <stdarg.h>
 
-#define TB_LOG(fmt, ...)                                                          \
-    if (allocator->logging)                                                    \
-        tb_log_write(__BASENAME__, __LINE__, fmt, ## __VA_ARGS__)
+#define TB_LOG(...)                                                          \
+    if (allocator->logging)                                                  \
+        tb_log_write(__BASENAME__, __LINE__, __VA_ARGS__)
 
 void
 tb_log_write(char *file, int line, char *fmt, ...)
@@ -23,7 +23,7 @@ tb_log_write(char *file, int line, char *fmt, ...)
 
     fprintf(stderr, "[%s:%d] ", file, line);
     va_start(ap, fmt);
-    fprintf(stderr, fmt, ap);
+    vfprintf(stderr, fmt, ap);
     va_end(ap);
     fprintf(stderr, "\n");
 }
