@@ -1287,4 +1287,15 @@ get_alloc_used_size_including_childs(allocator_t *allocator)
 
 } /* get_alloc_used_size_including_childs */
 
+uint64_t 
+get_total_size(allocator_t *alloc)
+{
+    return ((alloc_t *)alloc)->total_size;
+}
+
+uint64_t get_total_used(allocator_t *alloc)
+{
+    return ((alloc_t *)alloc)->total_used;
+}
+
 /* end  f region_alloc.c */
