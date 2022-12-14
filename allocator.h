@@ -277,6 +277,10 @@ _tb_strndup(allocator_t *allocator, const char *src, int n, const char *file,
  * Debugging/tracedump functions
  *************************************************/
 
+uint64_t get_total_size(allocator_t *alloc);
+uint64_t get_total_used(allocator_t *alloc);
+uint64_t get_alloc_used_size_including_childs(allocator_t *allocator);
+
 /* dump 로직은 포팅 대상에서 제외 */
 
 #endif /* _ALLOCATOR_H */
