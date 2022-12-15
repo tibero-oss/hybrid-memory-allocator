@@ -1298,4 +1298,9 @@ uint64_t get_total_used(allocator_t *alloc)
     return ((alloc_t *)alloc)->total_used;
 }
 
+uint64_t get_chunk_size(uint64_t req_size)
+{
+    return REQUEST2SIZE(_ALLOC_ADD_DBGINFO_SIZE(req_size));
+}
+
 /* end  f region_alloc.c */
