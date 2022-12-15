@@ -128,7 +128,8 @@ struct allocator_desc_s {
 extern allocator_t *SYSTEM_ALLOC;
 extern allocator_t *PMEM_SYSTEM_ALLOC;
 
-void tballoc_init(void);
+#define tballoc_init() tballoc_init_internal(__FILE__, __LINE__)
+void tballoc_init_internal(const char *file, int line);
 void tballoc_clear(void);
 
 #define region_allocator_new(parent, use_mutex)                  \
@@ -157,8 +158,6 @@ extern tb_bool_t use_root_allocator;
 extern tb_bool_t force_malloc_use;
 void *tb_root_malloc(int64_t bytes);
 void tb_root_free(void *in_ptr);
-
-
 
 
 /**

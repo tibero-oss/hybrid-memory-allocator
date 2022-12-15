@@ -80,6 +80,11 @@ static void region_chunk_dump(dstream_t *ds, chunk_t *chunk);
 static void region_previous_chunk_dump(dstream_t *ds, allocator_t *allocator,
                                        chunk_t *target_chunk);
 
+static allocator_t *
+sys_region_allocator_init(alloc_t *alloc, allocator_t *parent,
+                               tb_bool_t use_mutex, tb_bool_t use_pmem,
+                               const char *file, int line);
+
 /*************************************************************************
  * {{{ Allocator constructor/destructor
  *************************************************************************/
@@ -193,23 +198,31 @@ root_allocator_new(void)
     }
 } /* root_allocator_new */
 
-/**
- * @brief   SYSTEM_ALLOC, PMEM_SYSTEM_ALLOC 을 생성한다. (한번만 불린다!)
- *
- * system malloc을 사용하는 region allocator를 생성하는 부분
- * 생성을 제외한 나머지 인터페이스는 PGA용이건, SGA용이건 동일하다.
- */
-static allocator_t *
-system_allocator_new_internal(tb_bool_t use_pmem)
+allocator_t *
+system_allocator_new(const char *file, int line)
 {
-    alloc_t *alloc;
+    root_allocator_new();
 
+    return region_allocator_new_internal(NULL, true, false, file, line);
+} /* system_allocator_new */
+
+allocator_t *
+pmem_system_allocator_new(const char *file, int line)
+{
+    if (pbuddy_alloc_init(IPARAM(PMEM_DIR), NULL, IPARAM(PMEM_MAX_SIZE), IPARAM(PMEM_ALLOC_SIZE)) == NULL)
+        return NULL;
+
+    return region_allocator_new_internal(NULL, true, true, file, line);
+} /* pmem_system_allocator_new */
+
+static allocator_t *
+sys_region_allocator_init(alloc_t *alloc, allocator_t *parent,
+                          tb_bool_t use_mutex, tb_bool_t use_pmem,
+                          const char *file, int line)
+{
     region_t *region;
     chunk_t *bin;
     int idx;
-
-    /* Allocator 초기화. */
-    alloc = malloc(sizeof(alloc_t));
 
     alloc->super.alloc_owner_id = (int)tb_get_thrid();
 
@@ -217,84 +230,22 @@ system_allocator_new_internal(tb_bool_t use_pmem)
         alloc->super.alloc_type = ALLOC_TYPE_REGION_PMEM;
     else
         alloc->super.alloc_type = ALLOC_TYPE_REGION_SYS;
+
     alloc->super.desc = &region_allocator_desc;
-    if (use_pmem)
-        strcpy(alloc->super.name, "(PMEM SYSTEM ALLOC)");
-    else
-        strcpy(alloc->super.name, "(SYSTEM ALLOC)");
-    alloc->super.file = __FILE__;
-    alloc->super.line = (uint32_t)__LINE__;
-    alloc->super.vcode = ALLOCATOR_VCODE;
 
-    /* Initialize the allocator. */
-    alloc->super.use_mutex = true;
-    MUTEX_INIT(&(alloc->super.mutex));
-
-    alloc->super.parent = NULL;
-    INIT_LIST_HEAD(&(alloc->super.child));
-
-    if (use_pmem)
-        alloc->alloctype = REGION_ALLOC_PMEM;
-    else
-        alloc->alloctype = REGION_ALLOC_SYS;
-
-    alloc->alloc_idx = 0;
-    alloc->total_size = 0;
-    alloc->total_used = 0;
-
-    region = &(alloc->regions);
-    region->prev = region->next = region;
-
-    alloc->smallmap = 0;
-    alloc->treemap = 0;
-    alloc->dvsize = 0;
-    alloc->dv = NULL;
-
-    for (idx = 0; idx < 32; idx++) {
-        bin = SMALLBIN_AT(alloc, idx);
-        bin->fd = bin->bk = bin;
-
-        alloc->treebins[idx] = NULL;
+    if (parent) {
+        if (use_pmem)
+            strcpy(alloc->super.name, "(PMEM region allocator)");
+        else
+            strcpy(alloc->super.name, "(region allocator)");
+    }
+    else {
+        if (use_pmem)
+            strcpy(alloc->super.name, "(PMEM SYSTEM ALLOC)");
+        else
+            strcpy(alloc->super.name, "(SYSTEM ALLOC)");
     }
 
-    return &alloc->super;
-} /* system_allocator_new_internal */
-
-allocator_t *
-system_allocator_new(void)
-{
-    root_allocator_new();
-
-    return system_allocator_new_internal(false);
-} /* system_allocator_new */
-
-allocator_t *
-pmem_system_allocator_new(void)
-{
-    if (pbuddy_alloc_init(IPARAM(PMEM_DIR), NULL, IPARAM(PMEM_MAX_SIZE), IPARAM(PMEM_ALLOC_SIZE)) == NULL)
-        return NULL;
-
-    return system_allocator_new_internal(true);
-} /* pmem_system_allocator_new */
-
-
-static allocator_t *
-sys_region_allocator_init(alloc_t *alloc, allocator_t *parent,
-                               tb_bool_t use_mutex, tb_bool_t use_pmem, const char *file,
-                               int line) {
-    region_t *region;
-    chunk_t *bin;
-    int idx;
-
-    if (use_pmem)
-        alloc->super.alloc_type = ALLOC_TYPE_REGION_PMEM;
-    else
-        alloc->super.alloc_type = ALLOC_TYPE_REGION_SYS;
-    alloc->super.desc = &region_allocator_desc;
-    if (use_pmem)
-        strcpy(alloc->super.name, "(PMEM region allocator)");
-    else
-        strcpy(alloc->super.name, "(SYSTEM region allocator)");
     alloc->super.file = file;
     alloc->super.line = (uint32_t)line;
 
@@ -307,17 +258,18 @@ sys_region_allocator_init(alloc_t *alloc, allocator_t *parent,
     alloc->super.vcode = ALLOCATOR_VCODE;
 
     /* Initialize the allocator. */
+    alloc->super.use_mutex = use_mutex;
     if (use_mutex) {
-        alloc->super.use_mutex = true;
         MUTEX_INIT(&(alloc->super.mutex));
     }
 
-    if (parent->use_mutex)
+    if (parent != NULL && parent->use_mutex)
         MUTEX_LOCK(&parent->mutex);
 
     alloc->super.parent = parent;
     INIT_LIST_HEAD(&(alloc->super.child));
-    list_add_tail(&alloc->super.link, &parent->child);
+    if (parent != NULL)
+        list_add_tail(&alloc->super.link, &parent->child);
 
     if (use_pmem)
         alloc->alloctype = REGION_ALLOC_PMEM;
@@ -342,11 +294,10 @@ sys_region_allocator_init(alloc_t *alloc, allocator_t *parent,
         alloc->treebins[idx] = NULL;
     }
 
-    if (parent->use_mutex)
+    if (parent != NULL && parent->use_mutex)
         MUTEX_UNLOCK(&parent->mutex);
 
     return &alloc->super;
-
 }
 
 /**
@@ -372,8 +323,6 @@ region_allocator_new_internal(allocator_t *parent,
 
     if (alloc == NULL)
         return NULL;
-
-    alloc->super.alloc_owner_id = (int)tb_get_thrid();
 
     sys_region_allocator_init(alloc, parent, use_mutex, use_pmem, file,
                                    line);
@@ -675,10 +624,10 @@ root_allocator_delete()
     ROOT_ALLOC_PARENT = NULL;
 } /* root_allocator_new */
 
-void tballoc_init(void)
+void tballoc_init_internal(const char *file, int line)
 {
-    SYSTEM_ALLOC = system_allocator_new();
-    PMEM_SYSTEM_ALLOC = pmem_system_allocator_new();
+    SYSTEM_ALLOC = system_allocator_new(file, line);
+    PMEM_SYSTEM_ALLOC = pmem_system_allocator_new(file, line);
 }
 
 void tballoc_clear(void)
