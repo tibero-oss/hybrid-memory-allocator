@@ -1,6 +1,7 @@
 #include "allocator.h"
 #include "assert.h"
 #include "string.h"
+#include "pthread.h"
 
 void pmem_system_allocator()
 {
@@ -107,6 +108,57 @@ void allocator_delete_example()
 
     allocator_delete(alloc_parent);
 }
+
+void *thread_main(void * args) 
+{
+    int i;
+    allocator_t *alloc = args;
+    void *ptr[1024];
+
+    for (i = 0; i < 1024; i++)
+        ptr[i] = tb_malloc(alloc, 1024);
+
+    for (i = 0; i < 1024; i++)
+        tb_free(alloc, ptr[i]);
+
+    return 0;
+}
+
+void run_multi_thread(allocator_t *alloc)
+{
+#define THR_CNT 10
+    int rc, i;
+    pthread_t ptid[THR_CNT];
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    
+    for (i = 0; i < THR_CNT; i++) {
+        rc = pthread_create(&ptid[i], &attr, thread_main, alloc);
+        assert(rc == 0);
+    }
+    for (i = 0; i < THR_CNT; i++) {
+        rc = pthread_join(ptid[i], NULL);
+        assert(rc == 0);
+    }
+#undef THR_CNT
+}
+
+void multi_thread_alloc()
+{
+    allocator_t *alloc;
+
+    /* mutex를 사용하는 버젼으로 생성 */
+    alloc = region_allocator_new(SYSTEM_ALLOC, true);
+    run_multi_thread(alloc);
+    assert(get_total_used(alloc) == 0);
+    allocator_delete(alloc);
+
+    alloc = region_pallocator_new(PMEM_SYSTEM_ALLOC, true);
+    run_multi_thread(alloc);
+    assert(get_total_used(alloc) == 0);
+    allocator_delete(alloc);
+}
+
 void alloc_fail()
 {
     void *ptr;
@@ -134,6 +186,7 @@ int main()
     create_region_allocator();
     alloc_api();
     allocator_delete_example();
+    multi_thread_alloc();
 
     tballoc_clear();
 
