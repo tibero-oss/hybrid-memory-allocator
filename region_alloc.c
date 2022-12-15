@@ -150,6 +150,7 @@ root_allocator_new(void)
         child = &ROOT_ALLOC[n];
 
         child->super.alloc_owner_id = (int)tb_get_thrid();
+        child->super.logging = false;
 
         child->super.alloc_type = ALLOC_TYPE_REGION_ROOT;
         child->super.desc = &region_allocator_desc;
@@ -225,6 +226,7 @@ sys_region_allocator_init(alloc_t *alloc, allocator_t *parent,
     int idx;
 
     alloc->super.alloc_owner_id = (int)tb_get_thrid();
+    alloc->super.logging = false;
 
     if (use_pmem)
         alloc->super.alloc_type = ALLOC_TYPE_REGION_PMEM;
