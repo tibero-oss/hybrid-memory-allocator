@@ -177,8 +177,8 @@ void alloc_fail()
 int main()
 {
     IPARAM(PMEM_DIR) = "/workspace/develop/code_test/pmem_tmp";
-    IPARAM(PMEM_MAX_SIZE) = 1L * 1024L * 1024L * 1024L;
-    IPARAM(PMEM_ALLOC_SIZE) = 1L * 1024L * 1024L * 1024L;
+    IPARAM(PMEM_MAX_SIZE) = 512L * 1024L * 1024L;
+    IPARAM(PMEM_ALLOC_SIZE) = 512L * 1024L * 1024L;
 
     tballoc_init();
 
