@@ -1,6 +1,6 @@
 /**
  * @file    alloc_dbginfo_dump.h
- * @brief   TODO brief documentation here.
+ * @brief   allocator dbginfo dump header
  *
  * @author
  * @version $Id$
