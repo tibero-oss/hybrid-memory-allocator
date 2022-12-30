@@ -1,6 +1,6 @@
 CC = gcc
-#CFLAGS = -c -Wall -g -D TB_DEBUG -D _ALLOC_USE_DBGINFO -D PMEM_TEST -I.
-CFLAGS = -c -Wall -g -D TB_DEBUG -D _ALLOC_USE_DBGINFO -I.
+CFLAGS = -c -Wall -g -D TB_DEBUG -D _ALLOC_USE_DBGINFO -D PMEM_TEST -I.
+#CFLAGS = -c -Wall -g -D TB_DEBUG -D _ALLOC_USE_DBGINFO -I.
 SUBDIRS = examples
 OBJS = buddy_alloc.o pmem_buddy.o region_alloc.o dstream.o iparam.o
 
