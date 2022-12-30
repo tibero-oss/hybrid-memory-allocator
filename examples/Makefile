@@ -1,7 +1,7 @@
 CC = gcc
-CFLAGS = -Wall -g -D TB_DEBUG -D _ALLOC_USE_DBGINFO -D PMEM_TEST -I..
+#CFLAGS = -Wall -g -D TB_DEBUG -D _ALLOC_USE_DBGINFO -D PMEM_TEST -I..
+CFLAGS = -Wall -g -D TB_DEBUG -D _ALLOC_USE_DBGINFO -I..
 PROGS = test1
-#PROGS2 = test1
 
 all: $(PROGS)
 
