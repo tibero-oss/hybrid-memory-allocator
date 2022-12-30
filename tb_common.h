@@ -1,6 +1,6 @@
 /**
  * @file    tb_common.h
- * @brief   TODO brief documentation here.
+ * @brief   common header
  *
  * @author
  * @version $Id$
