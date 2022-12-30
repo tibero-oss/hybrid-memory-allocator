@@ -200,21 +200,10 @@ root_allocator_new(void)
 } /* root_allocator_new */
 
 allocator_t *
-system_allocator_new(const char *file, int line)
+system_allocator_new(tb_bool_t use_pmem, const char *file, int line)
 {
-    root_allocator_new();
-
-    return region_allocator_new_internal(NULL, true, false, file, line);
+    return region_allocator_new_internal(NULL, true, use_pmem, file, line);
 } /* system_allocator_new */
-
-allocator_t *
-pmem_system_allocator_new(const char *file, int line)
-{
-    if (pbuddy_alloc_init(IPARAM(PMEM_DIR), NULL, IPARAM(PMEM_MAX_SIZE), IPARAM(PMEM_ALLOC_SIZE)) == NULL)
-        return NULL;
-
-    return region_allocator_new_internal(NULL, true, true, file, line);
-} /* pmem_system_allocator_new */
 
 static allocator_t *
 sys_region_allocator_init(alloc_t *alloc, allocator_t *parent,
@@ -628,8 +617,15 @@ root_allocator_delete()
 
 void tballoc_init_internal(const char *file, int line)
 {
-    SYSTEM_ALLOC = system_allocator_new(file, line);
-    PMEM_SYSTEM_ALLOC = pmem_system_allocator_new(file, line);
+    root_allocator_new();
+    if (pbuddy_alloc_init(IPARAM(PMEM_DIR), NULL, IPARAM(PMEM_MAX_SIZE), IPARAM(PMEM_ALLOC_SIZE)) == NULL) {
+        pbuddy_alloc_destroy();
+        root_allocator_delete();
+        return NULL;
+    }
+
+    SYSTEM_ALLOC = system_allocator_new(false, file, line);
+    PMEM_SYSTEM_ALLOC = system_allocator_new(true, file, line);
 }
 
 void tballoc_clear(void)
