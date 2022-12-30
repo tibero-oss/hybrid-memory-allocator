@@ -101,6 +101,9 @@ exit:
 int pbuddy_alloc_destroy()
 {
     pbuddy_alloc_t *alloc_ptr = PBUDDY_ALLOC;
+
+    if (alloc_ptr == NULL) return -1;
+
     if (munmap((void *)((alloc_ptr)->page_start), (alloc_ptr)->alloc_size))
     {
         printf("munmap failed (errno:%d, %s)\n", errno, strerror(errno));
