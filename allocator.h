@@ -129,7 +129,7 @@ extern allocator_t *SYSTEM_ALLOC;
 extern allocator_t *PMEM_SYSTEM_ALLOC;
 
 #define tballoc_init() tballoc_init_internal(__FILE__, __LINE__)
-void tballoc_init_internal(const char *file, int line);
+tb_bool_t tballoc_init_internal(const char *file, int line);
 void tballoc_clear(void);
 
 #define region_allocator_new(parent, use_mutex)                  \
