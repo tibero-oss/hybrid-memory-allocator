@@ -615,17 +615,26 @@ root_allocator_delete()
     ROOT_ALLOC_PARENT = NULL;
 } /* root_allocator_new */
 
-void tballoc_init_internal(const char *file, int line)
+tb_bool_t tballoc_init_internal(const char *file, int line)
 {
     root_allocator_new();
-    if (pbuddy_alloc_init(IPARAM(PMEM_DIR), NULL, IPARAM(PMEM_MAX_SIZE), IPARAM(PMEM_ALLOC_SIZE)) == NULL) {
-        pbuddy_alloc_destroy();
-        root_allocator_delete();
-        return NULL;
-    }
+    if (pbuddy_alloc_init(IPARAM(PMEM_DIR), NULL, IPARAM(PMEM_MAX_SIZE), IPARAM(PMEM_ALLOC_SIZE)) == NULL)
+        goto error;
 
     SYSTEM_ALLOC = system_allocator_new(false, file, line);
+    if (SYSTEM_ALLOC == NULL)
+        goto error;
+
     PMEM_SYSTEM_ALLOC = system_allocator_new(true, file, line);
+    if (PMEM_SYSTEM_ALLOC == NULL)
+        goto error;
+
+    return true;
+
+error:
+        pbuddy_alloc_destroy();
+        root_allocator_delete();
+        return false;
 }
 
 void tballoc_clear(void)
