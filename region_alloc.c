@@ -632,9 +632,18 @@ tb_bool_t tballoc_init_internal(const char *file, int line)
     return true;
 
 error:
-        pbuddy_alloc_destroy();
-        root_allocator_delete();
-        return false;
+    pbuddy_alloc_destroy();
+    root_allocator_delete();
+    if (SYSTEM_ALLOC) {
+        allocator_delete(SYSTEM_ALLOC);
+        SYSTEM_ALLOC = NULL;
+    }
+    if (PMEM_SYSTEM_ALLOC) {
+        allocator_delete(PMEM_SYSTEM_ALLOC);
+        PMEM_SYSTEM_ALLOC = NULL;
+    }
+
+    return false;
 }
 
 void tballoc_clear(void)
